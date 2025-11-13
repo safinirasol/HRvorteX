@@ -1,0 +1,68 @@
+{
+  "name": "WellMind - Burnout Followup Workflow",
+  "description": "VorteX HR automation workflow triggered when burnout risk is detected",
+  "version": "1.0.0",
+  "trigger": {
+    "type": "http",
+    "path": "/orchestrate/burnout",
+    "method": "POST"
+  },
+  "inputs": {
+    "employee_id": { "type": "integer", "required": true },
+    "employee_name": { "type": "string", "required": true },
+    "risk_score": { "type": "integer", "required": true },
+    "label": { "type": "string", "required": true }
+  },
+  "steps": [
+    {
+      "id": "evaluate_risk",
+      "type": "script",
+      "language": "javascript",
+      "script": "if (input.risk_score > 80) { output.level = 'urgent'; output.action = 'escalate'; } else if (input.risk_score > 60) { output.level = 'high'; output.action = 'notify'; } else if (input.risk_score > 40) { output.level = 'moderate'; output.action = 'nudge'; } else { output.level = 'normal'; output.action = 'monitor'; }"
+    },
+    {
+      "id": "notify_hr_urgent",
+      "type": "email",
+      "when": "output.level == 'urgent'",
+      "to": "hr@company.com",
+      "subject": "🚨 URGENT: Burnout Risk Alert - {{employee_name}}",
+      "body": "Employee {{employee_name}} (ID: {{employee_id}}) shows URGENT burnout risk with score {{risk_score}}.\n\nImmediate action required:\n- Schedule 1-on-1 meeting\n- Contact manager\n- Offer wellness resources\n\nDashboard: https://wellmind.company.com/dashboard"
+    },
+    {
+      "id": "notify_hr_high",
+      "type": "email",
+      "when": "output.level == 'high'",
+      "to": "hr@company.com",
+      "subject": "⚠️ High Burnout Risk - {{employee_name}}",
+      "body": "Employee {{employee_name}} shows high burnout risk (score: {{risk_score}}).\n\nSuggested actions:\n- Review workload\n- Suggest wellness programs\n- Monitor for 2 weeks\n\nView details: https://wellmind.company.com/employee/{{employee_id}}"
+    },
+    {
+      "id": "send_wellness_nudge",
+      "type": "email",
+      "when": "output.level == 'moderate'",
+      "to": "{{employee_email}}",
+      "subject": "💚 Wellness Check-In",
+      "body": "Hi {{employee_name}},\n\nWe noticed you might benefit from some wellness resources.\n\nTake a break, try our mindfulness programs, or reach out to HR anytime.\n\nYour well-being matters!\n\n— WellMind Team"
+    },
+    {
+      "id": "create_task",
+      "type": "task",
+      "when": "output.level == 'urgent' || output.level == 'high'",
+      "assignee": "hr_manager",
+      "title": "Follow up: {{employee_name}} burnout risk",
+      "description": "Risk level: {{output.level}}\nScore: {{risk_score}}\nAction: {{output.action}}",
+      "due_days": 2
+    },
+    {
+      "id": "log_to_slack",
+      "type": "slack",
+      "when": "output.level == 'urgent'",
+      "channel": "#hr-alerts",
+      "message": "🚨 *Urgent Burnout Alert*\nEmployee: {{employee_name}}\nRisk Score: {{risk_score}}\nAction: Immediate follow-up required"
+    }
+  ],
+  "outputs": {
+    "workflow_status": "{{output.level}}",
+    "actions_taken": "{{output.action}}"
+  }
+}

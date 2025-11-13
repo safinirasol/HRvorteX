@@ -1,0 +1,8 @@
+flask==3.0.0
+flask-cors==4.0.0
+flask-sqlalchemy==3.1.1
+psycopg2-binary==2.9.9
+requests==2.31.0
+python-dotenv==1.0.0
+# Hedera SDK (optional - falls back to simulation if not installed)
+# hedera-sdk-python==2.25.0

@@ -1,0 +1,44 @@
+# Node / Next.js
+node_modules/
+.next/
+.vercel/
+out/
+.turbo/
+.cache/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Vite (frontend)
+frontend/node_modules/
+frontend/dist/
+
+# Logs
+*.log
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+ai-backend/venv/
+backend/venv/
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# IDE/editors
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
