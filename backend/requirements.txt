@@ -1,7 +1,8 @@
 flask==3.0.0
 flask-cors==4.0.0
 flask-sqlalchemy==3.1.1
-psycopg2-binary==2.9.9
+# psycopg2-binary currently lacks Python 3.13 wheels; skip on 3.13+ (SQLite is default)
+psycopg2-binary==2.9.9; python_version < '3.13'
 requests==2.31.0
 python-dotenv==1.0.0
 # Hedera SDK (optional - falls back to simulation if not installed)
