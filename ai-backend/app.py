@@ -1,3 +1,4 @@
+"""
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -17,3 +18,5 @@ if __name__ == '__main__':
     # listen on all interfaces so front-end (possibly in a container or different host)
     # can reach this backend. Keep default debug=False in production.
     app.run(host='0.0.0.0', port=5000)
+
+"""

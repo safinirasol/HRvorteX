@@ -1,3 +1,4 @@
+// components/Navbar.tsx
 "use client"
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
@@ -13,7 +14,7 @@ export default function Navbar() {
   }, [])
 
   const handleLogoError = () => {
-  setLogoSrc((prev) => (prev === '/api/logo' ? '/logo-fallback.svg' : '/logo-fallback.svg'))
+    setLogoSrc((prev) => (prev === '/api/logo' ? '/logo-fallback.svg' : '/logo-fallback.svg'))
   }
 
   return (
@@ -24,12 +25,12 @@ export default function Navbar() {
           <span className="font-bold text-lg tracking-tight text-slate-800">vorteX Health</span>
         </Link>
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-sm font-medium text-slate-600 hover:text-slate-900">Dashboard</Link>
+          <Link href="/" className="text-sm font-medium text-slate-600 hover:text-slate-900">Home</Link>
+          <Link href="/hr" className="text-sm font-medium text-slate-600 hover:text-slate-900">HR Dashboard</Link>
           <Link href="#employees" className="text-sm font-medium text-slate-600 hover:text-slate-900">Employees</Link>
           <Link href="#about" className="text-sm font-medium text-slate-600 hover:text-slate-900">About</Link>
           <Link href="#care" className="btn btn-care text-sm">Care</Link>
           <a href="/" aria-label="Brand Logo" className="block ml-2">
-            {/* Logo served via /api/logo with fallback */}
             <img src={logoSrc} onError={handleLogoError} alt="Logo" className="h-8 w-auto rounded-md shadow-card" />
           </a>
         </div>

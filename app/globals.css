@@ -43,6 +43,7 @@ body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", 
   backdrop-filter: blur(12px) saturate(140%);
   border: 1px solid var(--glass-border);
   @apply rounded-xl shadow-card;
+  pointer-events: none;
 }
 
 .page-shell {
@@ -72,6 +73,7 @@ body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", 
 
 .gradient-border {
   position: relative;
+
 }
 .gradient-border:before {
   content: '';
@@ -88,3 +90,17 @@ body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", 
 /* Animations helpers */
 .floating { animation: float 6s ease-in-out infinite; }
 
+/* Only disable pointer events on the decorative pseudo-element, NOT the container */
+.gradient-border::before,
+.glass-panel::before {
+  pointer-events: none;
+}
+
+/* Make the panel itself clickable */
+.glass-panel {
+  pointer-events: auto;
+}
+
+.gradient-border {
+  pointer-events: auto;
+}
