@@ -17,41 +17,58 @@ export default function BurnoutForm() {
   const handleChange = (field: string, value: string) => {
     setData(prev => ({ ...prev, [field]: value }))
   }
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setLoading(true)
-    try {
-      const res = await fetch('/api/survey', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      const result = await res.json()
-      
-      // Get prediction
-      const predictRes = await fetch('/api/predict', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      const predictResult = await predictRes.json()
-      
-      push({
-        title: 'Survey Submitted',
-        message: `Thank you ${data.name}! Your burnout risk: ${predictResult.risk}`,
-        type: predictResult.risk === 'High' ? 'error' : predictResult.risk === 'Medium' ? 'info' : 'success'
-      })
-      
-      // Reset form
-      setData({ name: '', email: '', department: '', work_hours: '', stress: '' })
-    } catch (err) {
-      push({ title: 'Submission error', message: 'Unable to submit survey', type: 'error' })
-      console.error(err)
-    } finally {
-      setLoading(false)
+// In burnoutform.tsx, update the fetch URLs:
+async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  e.preventDefault()
+  setLoading(true)
+  try {
+    // Call Flask backend directly
+    const res = await fetch('http://localhost:5000/api/survey', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    })
+    
+    if (!res.ok) {
+      const errorData = await res.json()
+      throw new Error(errorData.error || `Server error: ${res.status}`)
     }
+    
+    const result = await res.json()
+    
+    // Get prediction from Flask
+    const predictRes = await fetch('http://localhost:5000/api/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    })
+    
+    if (!predictRes.ok) {
+      throw new Error(`Prediction failed: ${predictRes.status}`)
+    }
+    
+    const predictResult = await predictRes.json()
+    
+    push({
+      title: 'Survey Submitted',
+      message: `Thank you ${data.name}! Your burnout risk: ${predictResult.risk}. Employee ID: ${result.employee_id}`,
+      type: predictResult.risk === 'High' ? 'error' : predictResult.risk === 'Medium' ? 'info' : 'success'
+    })
+    
+    // Reset form
+    setData({ name: '', email: '', department: '', work_hours: '', stress: '' })
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+    push({ 
+      title: 'Submission error', 
+      message: `Unable to submit survey: ${errorMessage}`, 
+      type: 'error' 
+    })
+    console.error('Form submission error:', err)
+  } finally {
+    setLoading(false)
   }
+}
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-4">

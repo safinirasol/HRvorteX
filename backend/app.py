@@ -9,15 +9,19 @@ from datetime import datetime
 import os
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 
 # Database config
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///wellmind.db')
+# Use absolute path for SQLite database
+db_path = os.getenv('DATABASE_URL', 'sqlite:///' + os.path.join(os.path.dirname(__file__), 'wellmind.db'))
+app.config['SQLALCHEMY_DATABASE_URI'] = db_path
+print(f"[DATABASE] Connecting to: {db_path}")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
 with app.app_context():
     db.create_all()
+    print(f"[DATABASE] Tables created. Employee count: {Employee.query.count()}, Results count: {BurnoutResult.query.count()}")
 
 @app.route('/api/health', methods=['GET'])
 def health():
@@ -37,37 +41,61 @@ def predict():
 @app.route('/api/survey', methods=['POST'])
 def submit_survey():
     """Accept employee burnout survey data and store in database"""
-    data = request.json
-    
-    # Find or create employee
-    employee = Employee.query.filter_by(email=data.get('email')).first()
-    if not employee:
-        employee = Employee(
-            name=data.get('name'),
-            department=data.get('department', 'General'),
-            email=data.get('email')
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Validate required fields
+        required_fields = ['name', 'email', 'department']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        # Find or create employee
+        employee = Employee.query.filter_by(email=data.get('email')).first()
+        if not employee:
+            employee = Employee(
+                name=data.get('name'),
+                department=data.get('department', 'General'),
+                email=data.get('email')
+            )
+            db.session.add(employee)
+            db.session.flush()  # Flush to get the ID without committing
+        
+        # Calculate burnout risk with safe conversion
+        try:
+            hours = int(data.get('work_hours') or 40)
+        except (ValueError, TypeError):
+            hours = 40
+        
+        try:
+            stress = int(data.get('stress') or 5)
+        except (ValueError, TypeError):
+            stress = 5
+        
+        score = round((hours / 40) * 50 + (stress / 10) * 50)
+        risk = 'High' if score >= 70 else 'Medium' if score >= 40 else 'Low'
+        
+        # Create burnout result
+        burnout_result = BurnoutResult(
+            employee_id=employee.id,
+            risk_score=score,
+            label=risk,
+            work_hours=hours,
+            stress_level=stress,
+            orchestrate_status='pending',
+            watson_timestamp=datetime.utcnow()
         )
-        db.session.add(employee)
+        db.session.add(burnout_result)
         db.session.commit()
-    
-    # Calculate burnout risk
-    hours = int(data.get('work_hours', 40))
-    stress = int(data.get('stress', 5))
-    score = round((hours / 40) * 50 + (stress / 10) * 50)
-    risk = 'High' if score >= 70 else 'Medium' if score >= 40 else 'Low'
-    
-    # Create burnout result
-    burnout_result = BurnoutResult(
-        employee_id=employee.id,
-        risk_score=score,
-        label=risk,
-        work_hours=hours,
-        stress_level=stress,
-        orchestrate_status='pending',
-        watson_timestamp=datetime.utcnow()
-    )
-    db.session.add(burnout_result)
-    db.session.commit()
+        
+        print(f"✓ Survey saved: Employee {employee.id}, Result {burnout_result.id}")
+    except Exception as e:
+        db.session.rollback()
+        print(f"✗ Survey submission error: {str(e)}")
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
     
     # Store hash on Hedera
     try:
@@ -101,21 +129,28 @@ def dashboard():
     avg_hours = db.session.query(db.func.avg(BurnoutResult.work_hours)).scalar() or 0
     avg_stress = db.session.query(db.func.avg(BurnoutResult.stress_level)).scalar() or 0
     
-    # Department breakdown
+    # FIXED: Department breakdown - count distinct employees per department
     departments = db.session.query(
         Employee.department,
-        db.func.count(BurnoutResult.id),
+        db.func.count(db.func.distinct(Employee.id)),  # Count unique employees
         db.func.avg(BurnoutResult.risk_score)
-    ).join(BurnoutResult).group_by(Employee.department).all()
+    ).outerjoin(BurnoutResult).group_by(Employee.department).all()
     
     department_data = [
-        {'department': dept, 'count': count, 'avg_risk': round(avg_risk, 1)}
-        for dept, count, avg_risk in departments
+        {'department': dept, 'count': count, 'avg_risk': round(dept_avg_risk or 0, 1)}
+        for dept, count, dept_avg_risk in departments
     ]
     
     # Recent submissions
     recent_results = BurnoutResult.query.order_by(BurnoutResult.watson_timestamp.desc()).limit(10).all()
     
+    # DEBUG: Check all employees
+    all_employees = Employee.query.all()
+    print(f"[DEBUG] Total employees in DB: {len(all_employees)}")
+    for emp in all_employees:
+        submissions = BurnoutResult.query.filter_by(employee_id=emp.id).count()
+        print(f"[DEBUG] Employee: {emp.name}, Dept: {emp.department}, Submissions: {submissions}")
+
     return jsonify({
         'summary': {
             'total_employees': total_employees,
@@ -135,6 +170,7 @@ def dashboard():
 def list_employees():
     """List all employees with their latest burnout status"""
     employees = Employee.query.all()
+    print(f"[DEBUG] Employees endpoint: returning {len(employees)} employees")  # Debug line
     data = []
     for emp in employees:
         latest = BurnoutResult.query.filter_by(employee_id=emp.id).order_by(BurnoutResult.watson_timestamp.desc()).first()

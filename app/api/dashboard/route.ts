@@ -2,25 +2,19 @@ import { NextResponse } from 'next/server'
 
 export async function GET() {
   try {
-    // Mock dashboard data
-    const dashboardData = {
-      total_employees: 150,
-      surveys_submitted: 45,
-      high_risk_count: 12,
-      medium_risk_count: 18,
-      low_risk_count: 15,
-      avg_work_hours: 42.5,
-      avg_stress_level: 6.2,
-      department_breakdown: {
-        Engineering: { high: 5, medium: 6, low: 4 },
-        Marketing: { high: 3, medium: 4, low: 3 },
-        Sales: { high: 2, medium: 5, low: 2 },
-        HR: { high: 1, medium: 1, low: 3 },
-        Finance: { high: 1, medium: 2, low: 3 }
-      }
+    // Forward request to Flask backend
+    const flaskResponse = await fetch('http://localhost:5000/api/dashboard', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    
+    if (!flaskResponse.ok) {
+      console.error('Flask dashboard error:', flaskResponse.status)
+      throw new Error('Flask backend error')
     }
     
-    return NextResponse.json(dashboardData)
+    const data = await flaskResponse.json()
+    return NextResponse.json(data)
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to fetch dashboard data' },
